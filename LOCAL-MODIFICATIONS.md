@@ -127,6 +127,18 @@ peterhchina 的 CNTV-V4 IPv4 列表，已下载为本地文件（原因见 §3�
 curl.exe -sk -o "C:\Hack APP\LibreTV\public\cntv-v4.m3u" "https://raw.githubusercontent.com/peterhchina/iptv/master/CNTV-V4.m3u"
 ```
 
+**频道分组**：LibreTV 的 m3u 解析器优先读取 `#EXTINF` 行内的 `group-title` 属性（`#EXTGRP` 行会被忽略，属性缺失时才生效）。原列表自带 4 组（央视频道/卫视频道/电影频道/地方频道），我用 `re-group.py` 按频道名规则改写为 6 个更具体的分组（368 频道）：
+| 分组 | 数量 | 识别规则 |
+|---|---|---|
+| 央视频道 | 16 | 频道名以 CCTV / CGTN 开头 |
+| 卫视频道 | 26 | 频道名含"卫视" |
+| 地方频道 | 242 | 含省市台特征词（综合/新闻/科教/经视/电视台等） |
+| 电影频道 | 41 | 原属电影组且频道名含"电影" |
+| 剧集频道 | 39 | 原属电影组的影视剧作品（西游记、倚天屠龙记等） |
+| 专题频道 | 4 | 其余（兵器科技、熊猫直播、风云剧场等） |
+
+如需重新分组，修改 `re-group.py` 的分类规则后执行 `python re-group.py`（会同步清除无效的 #EXTGRP 行）。
+
 ### 4.2 `public/intl.m3u` — 国际新闻精选直播源（6 频道）
 
 实测当前联通宽带上可直连播放；更新项目时**不要删除此文件**：
