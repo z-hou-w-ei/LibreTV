@@ -2,6 +2,9 @@
 
 > **用途**：记录 2026-10-20 在本机部署 LibreTV 时做的全部个性化修改，作为升级/更新（git pull）后重新应用补丁、排查功能丢失的对照清单。
 > 项目来源：https://github.com/LibreSpark/LibreTV ｜ 本地版本：v2.19.5 ｜ 部署目录：`C:\Hack APP\LibreTV`
+>
+> **🌐 本机个性化修改的公开备份（GitHub fork）**：https://github.com/z-hou-w-ei/LibreTV
+> 本地已配置两个远程仓库：`origin` = 上游 LibreSpark/LibreTV（拉取更新用）、`fork` = 本 fork（推送本地修改用）。同步上游的完整流程见 §5。
 
 ---
 
@@ -132,22 +135,26 @@ DEFAULT_LIVE_SOURCES=[{"name":"央视卫视·IPv4","url":"https://peterhchina.gi
 
 ---
 
-## 5. 更新项目（git pull）后的恢复流程
+## 5. 同步上游更新 + 恢复本地功能（标准流程）
+
+本机已配置双远程：`origin` = 上游（拉取更新）、`fork` = 个人 fork https://github.com/z-hou-w-ei/LibreTV（备份推送）。
 
 ```powershell
 cd C:\Hack APP\LibreTV
-git status                    # 查看本地修改/冲突
-git stash                     # （可选）暂存本地补丁，再 pull 后恢复
-git pull origin main
-git status                    # 若 3 个源码文件报 conflict，逐个解决
+git status                      # 确认工作区干净（有未提交改动先 commit 或 stash）
+git fetch origin                # 拉取上游最新提交
+git rebase origin/main          # 把本地个性化提交移到上游最新之上（有冲突会停下）
+# 若提示冲突：git status 查看冲突文件 → 手动解决 → git add <文件> → git rebase --continue
+git push fork main              # 备份推送个人 fork
+git status                      # 确认干净；若 3 个源码补丁文件被上游改动，检查后重打
 ```
 
 按顺序处理：
 
 1. **3 个源码补丁文件**（`src/lib/api-guard.ts`、`src/app/api/status/route.ts`、`src/components/auth.tsx`）：
-   - 无冲突：直接检查 §2 中 3 处补丁是否仍存在（`git diff` 或直接读文件），被上游改没就重新应用；
-   - 有冲突：以上游新版为准解决冲突，再按 §2 重新打补丁。
-2. **`.env`、`intl.m3u`、3 个脚本、桌面快捷方式**：均不在版本库或未被跟踪，`git pull` 不会动它们，确认仍在即可。
+   - rebase 无冲突：检查 §2 中 3 处补丁是否仍生效（读文件或 `git log -p`），被上游改没就重新应用；
+   - rebase 有冲突：以上游新版为准解决冲突，再按 §2 重新打补丁，`git rebase --continue` 后重新 `git push fork main`。
+2. **`.env`、`intl.m3u`、3 个脚本、桌面快捷方式**：均不在版本库或未被跟踪，同步不会动它们，确认仍在即可。
 3. **依赖与构建**（源码有变时）：
    ```powershell
    npm install
