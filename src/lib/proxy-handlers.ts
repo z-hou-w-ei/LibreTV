@@ -120,7 +120,14 @@ export async function handleProxyRequest(req: Request, targetUrl: string): Promi
 
   // m3u8 文本：重写为代理地址（以重定向后的最终 URL 为 base 解析相对地址）
   if (isM3u8) {
-    const text = await response.text();
+    let text: string;
+    try {
+      text = await response.text();
+    } catch {
+      // 客户端在 manifest 读取完成前断开（关闭页面/取消请求），上游连接已随 abort 终止；
+      // 此处不能抛出，否则未捕获的 rejection 会直接终止整个 Node 进程（服务崩溃、前端报拒绝连接）
+      return new NextResponse(null, { status: 499 });
+    }
     return new NextResponse(rewriteM3u8(text, finalUrl), {
       status: response.status,
       headers: {
@@ -218,7 +225,14 @@ export async function handleLiveStreamRequest(req: Request, targetUrl: string): 
   // HLS manifest：重写变体/分片地址指向本路由，保证后续请求同源同鉴权。
   // 关键：以重定向后的最终 URL 为 base 解析相对地址（gslb 调度源 302 后路径会变）
   if (isM3u8) {
-    const text = await response.text();
+    let text: string;
+    try {
+      text = await response.text();
+    } catch {
+      // 客户端在 manifest 读取完成前断开（切台/关页/返回），上游已随 abort 终止；
+      // 必须捕获，否则未处理的 rejection 会终止整个 Node 进程
+      return new NextResponse(null, { status: 499 });
+    }
     return new NextResponse(rewriteM3u8(text, finalUrl, 0, LIVE_STREAM_BASE), {
       status: response.status,
       headers: {

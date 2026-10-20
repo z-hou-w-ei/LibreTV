@@ -59,9 +59,8 @@ if (-not $Edge) {
   exit 1
 }
 
-# ---------- 1. Ensure service is running ----------
-$listener = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
-if (-not $listener) {
+# ---------- Service management ----------
+function Start-LibreTVService {
   Write-Host 'Starting LibreTV service...' -ForegroundColor Cyan
   $node = (Get-Command node).Source
   Start-Process -FilePath $node `
@@ -81,29 +80,57 @@ if (-not $listener) {
   }
   if (-not $ready) {
     Write-Host 'Service failed to start. Check server.log' -ForegroundColor Red
+    return $false
+  }
+  Write-Host 'LibreTV service is ready.' -ForegroundColor Green
+  return $true
+}
+
+# ---------- 1. Ensure service is running ----------
+$listener = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+if (-not $listener) {
+  $ok = Start-LibreTVService
+  if (-not $ok) {
     Read-Host 'Press Enter to exit'
     exit 1
   }
 }
-Write-Host 'LibreTV service is ready.' -ForegroundColor Green
 
-# ---------- 2. Open Edge app window ----------
-Start-Process -FilePath $Edge -ArgumentList "--app=$Url", '--window-size=1360,900'
-
-# ---------- 3. Wait until ALL LibreTV windows are closed ----------
-Write-Host 'Waiting for the LibreTV window to appear...' -ForegroundColor Cyan
+# ---------- 2. Open Edge app window (retry up to 3 times) ----------
 $appeared = $false
-for ($i = 0; $i -lt 120; $i++) {
-  if ((Get-LibreTVWindows).Count -gt 0) { $appeared = $true; break }
-  Start-Sleep -Seconds 1
-}
-if (-not $appeared) {
-  Write-Host 'No LibreTV window detected. Check Edge or the service log.' -ForegroundColor Red
-} else {
-  Write-Host 'LibreTV window opened. The service will stop after ALL LibreTV windows are closed.' -ForegroundColor Green
-  while ((Get-LibreTVWindows).Count -gt 0) {
-    Start-Sleep -Seconds 2
+for ($attempt = 0; $attempt -lt 3 -and -not $appeared; $attempt++) {
+  Start-Process -FilePath $Edge -ArgumentList "--app=$Url", '--window-size=1360,900'
+  for ($i = 0; $i -lt 30; $i++) {
+    if ((Get-LibreTVWindows).Count -gt 0) { $appeared = $true; break }
+    Start-Sleep -Seconds 1
   }
+}
+
+# ---------- 3. Guardian loop (crash auto-restart + all-windows-closed shutdown) ----------
+if ($appeared) {
+  Write-Host 'LibreTV window opened. The service stops only after ALL LibreTV windows are closed.' -ForegroundColor Green
+} else {
+  Write-Host 'No LibreTV window detected yet. Service keeps running and window detection continues.' -ForegroundColor Yellow
+}
+while ($true) {
+  $wins = @(Get-LibreTVWindows)
+  if ($wins.Count -eq 0) {
+    if (-not $appeared) {
+      # Window never appeared: keep the service alive, keep polling (never stop by mistake)
+      Start-Sleep -Seconds 3
+      continue
+    }
+    # Windows were open and now ALL are closed -> stop the service
+    Write-Host 'All LibreTV windows closed. Stopping service...' -ForegroundColor Cyan
+    break
+  }
+  # Windows are open: make sure the service stays alive (crash self-healing)
+  $listener = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+  if (-not $listener) {
+    Write-Host 'Service crashed while windows open. Restarting...' -ForegroundColor Yellow
+    Start-LibreTVService | Out-Null
+  }
+  Start-Sleep -Seconds 3
 }
 
 # ---------- 4. Stop service ----------

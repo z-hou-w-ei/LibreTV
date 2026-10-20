@@ -15,6 +15,9 @@
 | `src/lib/api-guard.ts` | 源码补丁 | 无密码时 API 完全免鉴权 | ⚠️ 可能冲突，需重新应用 |
 | `src/app/api/status/route.ts` | 源码补丁 | 无密码时 `verified=true` | ⚠️ 可能冲突，需重新应用 |
 | `src/components/auth.tsx` | 源码补丁 | 前端永不弹登录/配置密码框 | ⚠️ 可能冲突，需重新应用 |
+| `src/lib/proxy-handlers.ts` | 源码补丁 | 流代理 m3u8 读取防崩溃（客户端断开不击穿进程） | ⚠️ 可能冲突，需重新应用 |
+| `src/app/api/live/probe/route.ts` | 源码补丁 | 直播测活 m3u8 读取防崩溃 | ⚠️ 可能冲突，需重新应用 |
+| `stress_abort_test.py` | 新增文件 | 客户端中断回归压测脚本 | ✅ 未跟踪文件，保留 |
 | `.env` | 本地配置 | 免登录 + 8 点播源 + 2 直播源 + 超时参数 | ✅ 已被 `.gitignore` 排除，不受影响 |
 | `public/intl.m3u` | 新增文件 | 本地国际精选直播源（6 频道） | ✅ 未跟踪文件，保留 |
 | `start-LibreTV.ps1` | 新增脚本 | 自动启动服务 → 开 Edge 窗口 → 全窗关闭才停服 | ✅ 未跟踪文件，保留 |
@@ -69,6 +72,22 @@ const verified = passwordRequired ? sessionFromCookieHeader(req.headers.get('coo
 ```
 
 > 配套约定：`.env` **不设置 `PASSWORD`**。一旦将来在 `.env` 里加了 `PASSWORD`，补丁 2.1/2.2 会自动回到"需登录"模式（`isPasswordConfigured()` 变为 true），行为可预期。
+
+### 2.4 稳定性加固（客户端中断不崩溃 + 服务自动重启）—— 2026-10-20 追加
+
+**问题现象**：使用中操作几步后出现"网络请求失败"，再操作或返回主页提示"无法访问、拒绝连接"（服务进程消失，`server.log.err` 无任何错误）。
+
+**根因**：直播/点播 HLS 流代理 `src/lib/proxy-handlers.ts` 的 m3u8 分支中 `await response.text()` 为**裸调用**（无 try/catch）。用户在流请求传输完成前切台/关页/返回时，服务端 abort 上游连接导致该 promise 以 rejection 结束——Node 对未捕获 rejection 默认直接终止整个进程，且不写任何日志。
+
+**修改**：
+1. `src/lib/proxy-handlers.ts` — 两处（`handleProxyRequest` 点播代理、`handleLiveStreamRequest` 直播代理）m3u8 读取包 try/catch，中断时返回 `499`（不抛出、不击穿进程）。
+2. `src/app/api/live/probe/route.ts` — `fetchHeadersOnly` 的 m3u8 读取同样加 try/catch（中断按该频道本次探测失败处理）。
+3. `start-LibreTV.ps1` — 守护循环重构：**窗口未出现时保持服务运行并持续检测（绝不误停）；有窗口时服务崩溃自动重启（watchdog）；仅当"窗口曾出现且全部关闭"才停服**。窗口打开改为最多重试 3 次。
+
+**验证**（压测脚本 `stress_abort_test.py`）：
+- 20 轮 m3u8 manifest 强制中断 + 10 并发流中断 → 服务全程存活；
+- 杀掉 node 服务模拟崩溃 → 启动器 20 秒内自动重启；
+- 全部 LibreTV 窗口关闭 → 服务正确停止。
 
 ---
 

@@ -158,7 +158,12 @@ async function fetchHeadersOnly(
   let text: string | undefined;
   if (isM3u8) {
     // m3u8 是小文本，读取以供解析；分片则不读取
-    text = await res.text();
+    try {
+      text = await res.text();
+    } catch {
+      // 客户端/上游在读取过程中中断：本次探测按无内容处理（该频道本次判定失败），不得抛出
+      text = '';
+    }
   } else if (res.body) {
     try { await res.body.cancel(); } catch { /* 忽略 */ }
   }
