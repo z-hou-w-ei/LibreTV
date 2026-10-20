@@ -1,5 +1,18 @@
 # LibreTV
 
+> ## ⚠️ 本仓库为个人本地部署 fork（非官方）
+>
+> 本仓库由 **z-hou-w-ei** 从 [LibreSpark/LibreTV](https://github.com/LibreSpark/LibreTV) fork，用于**个人本地部署与技术学习**。与上游的差异说明见 [LOCAL-MODIFICATIONS.md](./LOCAL-MODIFICATIONS.md)。
+
+> ## 📌 免责声明与合规说明（请阅读）
+>
+> 1. **用途声明**：本项目仅用于个人学习、研究及本地私有部署，不提供任何形式的商业服务。
+> 2. **资源来源**：本仓库预置的点播/直播资源链接（采集站接口、M3U 播放列表）均来自公开网络，其内容版权归原作者及权利方所有；本项目不存储、不上传、不制作任何影视内容本体，仅提供程序层面的聚合、搜索与代理转发。
+> 3. **免费使用提示**：部分资源为免费公益接口，可能随时失效，请勿将其用于任何商业用途。
+> 4. **删除义务**：如权利人认为相关链接侵权，请联系仓库所有者删除；使用本项目的用户请遵守您所在国家/地区的法律法规及 [GitHub 社区准则](https://docs.github.com/site-policy/github-terms/github-community-guidelines)。
+> 5. **免登录模式**：本 fork 默认**无密码免登录**，仅适用于个人内网/本机部署场景；若部署到公网，请在 `.env` 中设置 `PASSWORD` 启用访问验证。
+> 6. **安全声明**：本项目不包含任何恶意代码，不收集任何用户数据。
+
 LibreTV Next.js 迁移版：免费在线视频聚合搜索与观看平台。基于 Next.js 15（App Router）+ TypeScript + Tailwind CSS，播放内核为 ArtPlayer + hls.js，支持亮暗双主题。
 
 > 🏠 **官网**：[LibreTV 官网](https://libretv.is-an.org/)
