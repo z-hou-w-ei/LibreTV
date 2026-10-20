@@ -56,7 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((s) => {
         if (cancelled) return;
         setVerified(s.verified);
-        setSetupRequired(!s.passwordRequired);
+        // 无密码部署模式：不要求配置密码，也不弹登录/设置框
+        setSetupRequired(false);
         setVersion(s.version);
         setChecked(true);
       })

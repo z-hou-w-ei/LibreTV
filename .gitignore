@@ -6,6 +6,8 @@ out/
 *.tsbuildinfo
 vitest-results.json
 *.log
+server.log*
+*.err
 
 # AI 工具产物（本机会话/缓存数据，不入库）
 .mimosa/

@@ -1,13 +1,10 @@
 import { NextResponse } from 'next/server';
 import { isPasswordConfigured, sessionFromCookieHeader } from './auth';
 
-/** API Route 共享守卫：未配置密码返回 503，未登录返回 401 */
+/** API Route 共享守卫：未配置密码时完全开放（免登录）；配置密码后按会话校验 */
 export function guardRequest(req: Request): NextResponse | null {
   if (!isPasswordConfigured()) {
-    return NextResponse.json(
-      { error: '服务器未设置 PASSWORD 环境变量' },
-      { status: 503 }
-    );
+    return null;
   }
   if (!sessionFromCookieHeader(req.headers.get('cookie'))) {
     return NextResponse.json({ error: '未登录' }, { status: 401 });

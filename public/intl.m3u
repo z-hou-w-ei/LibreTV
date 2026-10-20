@@ -1,0 +1,13 @@
+#EXTM3U x-tvg-url=""
+#EXTINF:-1 tvg-name="BBC World News" tvg-id="BBCWorld" tvg-logo="https://live.fanmingming.cn/tv/BBC%20World.png" group-title="国际新闻",BBC World News
+http://cdns.jp-primehome.com:8000/zhongying/live/playlist.m3u8?cid=cs15
+#EXTINF:-1 tvg-name="CNN International" tvg-id="CNN" tvg-logo="https://live.fanmingming.cn/tv/CNN.png" group-title="国际新闻",CNN International
+https://turnerlive.warnermediacdn.com/hls/live/586495/cnngo/cnn_slate/VIDEO_0_3564000.m3u8
+#EXTINF:-1 tvg-name="Fox News Now" tvg-id="FoxNews" tvg-logo="https://live.fanmingming.cn/tv/Fox%20News.png" group-title="国际新闻",Fox News Now
+https://fox-foxnewsnow-samsungus.amagi.tv/playlist720p.m3u8
+#EXTINF:-1 tvg-name="CNA" tvg-id="CNA" tvg-logo="https://live.fanmingming.cn/tv/CNA.png" group-title="国际新闻",CNA
+https://d2e1asnsl7br7b.cloudfront.net/7782e205e72f43aeb4a48ec97f66ebbe/index_5.m3u8
+#EXTINF:-1 tvg-name="RT News" tvg-id="RT" tvg-logo="https://live.fanmingming.cn/tv/RT.png" group-title="国际新闻",RT News
+https://rt-glb.rttv.com/dvr/rtnews/playlist_4500Kb.m3u8
+#EXTINF:-1 tvg-name="RT Documentary" tvg-id="RTD" tvg-logo="https://live.fanmingming.cn/tv/RT%20Documentary.png" group-title="国际新闻",RT Documentary
+https://rt-rtd.rttv.com/live/rtdoc/playlist_4500Kb.m3u8
