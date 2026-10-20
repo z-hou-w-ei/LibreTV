@@ -57,6 +57,14 @@ export function LivePlayer({ url, title, onPrevChannel, onNextChannel }: LivePla
   const hlsRef = useRef<Hls | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mpegtsRef = useRef<any>(null);
+  // url 变化即换台：显示频道名 2.5s
+  // —— 画中画（Edge PiP）保持的关键设计 ——
+  // ArtPlayer 实例只在挂载时创建一次，换台只切换 HLS/FLV/原生源、复用同一 <video> 元素，
+  // 绝不销毁重建播放器。否则浏览器画中画跟随的 video 元素被销毁，PiP 会退出/暂停。
+  // retryNonce 变化（手动重新加载）仍允许重建实例，属错误恢复场景。
+  const firstUrlRef = useRef(true);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const switchSourceRef = useRef<((targetUrl: string) => void) | null>(null);
   const [error, setError] = useState('');
   const [hint, setHint] = useState('');
   const [loading, setLoading] = useState(true);
@@ -121,7 +129,8 @@ export function LivePlayer({ url, title, onPrevChannel, onNextChannel }: LivePla
       video: HTMLVideoElement,
       mediaUrl: string,
       allowProxyFallback: boolean,
-      failMessage?: string
+      failMessage?: string,
+      fallbackUrl?: string
     ) => {
       cleanupEngines();
       const onError = () => {
@@ -130,7 +139,7 @@ export function LivePlayer({ url, title, onPrevChannel, onNextChannel }: LivePla
         if (disposed || destroyed) return;
         if (allowProxyFallback && !mediaUrl.startsWith(STREAM_PROXY_PREFIX)) {
           showHint('直连失败，改用代理重试...');
-          setupNative(video, proxyUrl(url), false, failMessage);
+          setupNative(video, proxyUrl(fallbackUrl || mediaUrl), false, failMessage, fallbackUrl);
           return;
         }
         setError(failMessage || '该地址不是可播放的直播流（内容可能是文件或错误提示）');
@@ -143,7 +152,12 @@ export function LivePlayer({ url, title, onPrevChannel, onNextChannel }: LivePla
     };
 
     /** HLS 直播参数：小缓冲、快速追帧；与点播（大缓冲、进度恢复）刻意区分 */
-    const setupHls = (video: HTMLVideoElement, mediaUrl: string, stage: 'direct' | 'proxy') => {
+    const setupHls = (
+      video: HTMLVideoElement,
+      mediaUrl: string,
+      stage: 'direct' | 'proxy',
+      fallbackUrl?: string
+    ) => {
       cleanupEngines();
       let liveNetRetryCount = 0;
       let mediaRecoverCount = 0;
@@ -198,12 +212,12 @@ export function LivePlayer({ url, title, onPrevChannel, onNextChannel }: LivePla
           ) {
             showHint('直连失败，改用代理重试...');
             // 直播 manifest 重写需要本站前缀，交给代理通道
-            setupHls(video, proxyUrl(url), 'proxy');
+            setupHls(video, proxyUrl(fallbackUrl || mediaUrl), 'proxy', fallbackUrl);
             return;
           }
           // HLS 直连与代理均失败：可能是"无 .m3u8 后缀但内容是 MP4"的源，回退原生播放
           showHint('HLS 解析失败，尝试原生播放...');
-          setupNative(video, url, true, `直播流加载失败${codeHint}，可能该频道已失效，请尝试其他频道`);
+          setupNative(video, fallbackUrl || mediaUrl, true, `直播流加载失败${codeHint}，可能该频道已失效，请尝试其他频道`, fallbackUrl);
           return;
         }
         if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
@@ -221,7 +235,8 @@ export function LivePlayer({ url, title, onPrevChannel, onNextChannel }: LivePla
     const setupFlv = async (
       video: HTMLVideoElement,
       mediaUrl: string,
-      allowProxyFallback: boolean
+      allowProxyFallback: boolean,
+      fallbackUrl?: string
     ) => {
       cleanupEngines();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -258,7 +273,7 @@ export function LivePlayer({ url, title, onPrevChannel, onNextChannel }: LivePla
         if (disposed || destroyed) return;
         if (!playbackStarted && allowProxyFallback && !mediaUrl.startsWith(STREAM_PROXY_PREFIX)) {
           showHint('直连失败，改用代理重试...');
-          void setupFlv(video, proxyUrl(url), false);
+          void setupFlv(video, proxyUrl(fallbackUrl || mediaUrl), false, fallbackUrl);
           return;
         }
         setError(`直播流加载失败（${errType}），请尝试其他频道`);
@@ -324,13 +339,13 @@ export function LivePlayer({ url, title, onPrevChannel, onNextChannel }: LivePla
       moreVideoAttr: { playsInline: true },
       customType: {
         m3u8: (video: HTMLVideoElement) => {
-          setupHls(video, url, 'direct');
+          setupHls(video, url, 'direct', url);
         },
         flv: (video: HTMLVideoElement) => {
-          void setupFlv(video, url, true);
+          void setupFlv(video, url, true, url);
         },
         mp4: (video: HTMLVideoElement) => {
-          setupNative(video, url, true);
+          setupNative(video, url, true, undefined, url);
         },
       },
     });
@@ -366,11 +381,32 @@ export function LivePlayer({ url, title, onPrevChannel, onNextChannel }: LivePla
       }
     }, 15000);
 
+    /** 换台：复用同一 video 元素切换引擎，不销毁播放器（保持 Edge 画中画） */
+    const switchSource = (targetUrl: string) => {
+      const art = artRef.current;
+      if (!art || !targetUrl) return;
+      playbackStarted = false;
+      setError('');
+      setLoading(true);
+      setShowPoster(true);
+      cleanupEngines();
+      const engine = engineOf(targetUrl);
+      if (engine === 'flv') {
+        void setupFlv(art.video, targetUrl, true, targetUrl);
+      } else if (engine === 'native') {
+        setupNative(art.video, targetUrl, true, undefined, targetUrl);
+      } else {
+        setupHls(art.video, targetUrl, 'direct', targetUrl);
+      }
+    };
+    switchSourceRef.current = switchSource;
+
     return () => {
       disposed = true;
       clearTimeout(startTimer);
       if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
       cleanupEngines();
+      switchSourceRef.current = null;
       art.destroy();
       artRef.current = null;
       // CONTROL_HIDE_TIME 是全局 static：恢复库默认值，避免影响后续挂载的其它播放器
@@ -378,7 +414,18 @@ export function LivePlayer({ url, title, onPrevChannel, onNextChannel }: LivePla
       destroyed = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url, retryNonce, onPrevChannel, onNextChannel]);
+  }, [retryNonce, onPrevChannel, onNextChannel]);
+
+  // —— 换台：url 变化只切源（复用 video 元素），不重建播放器，保持画中画 ——
+  useEffect(() => {
+    if (!url) return;
+    if (firstUrlRef.current) {
+      firstUrlRef.current = false;
+      return;
+    }
+    switchSourceRef.current?.(url);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url]);
 
   return (
     <div className="relative w-full h-full">

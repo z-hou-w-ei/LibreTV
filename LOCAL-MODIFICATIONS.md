@@ -18,6 +18,7 @@
 | `src/lib/proxy-handlers.ts` | 源码补丁 | 流代理 m3u8 读取防崩溃（客户端断开不击穿进程） | ⚠️ 可能冲突，需重新应用 |
 | `src/app/api/live/probe/route.ts` | 源码补丁 | 直播测活 m3u8 读取防崩溃 | ⚠️ 可能冲突，需重新应用 |
 | `src/components/live-channel-list.tsx` | 源码补丁 | 直播分组标签条由横向滑动改为自动换行（全部分组一次显示，无需左右滑动） | ⚠️ 可能冲突，需重新应用 |
+| `src/components/live-player.tsx` | 源码补丁 | 直播换台复用同一 video 元素切换源、不重建播放器（保持 Edge 画中画不暂停，详见 §2.4） | ⚠️ 可能冲突，需重新应用 |
 | `stress_abort_test.py` | 新增文件 | 客户端中断回归压测脚本 | ✅ 未跟踪文件，保留 |
 | `.env` | 本地配置 | 免登录 + 8 点播源 + 2 直播源 + 超时参数 | ✅ 已被 `.gitignore` 排除，不受影响 |
 | `public/intl.m3u` | 新增文件 | 本地国际精选直播源（6 频道） | ✅ 未跟踪文件，保留 |
@@ -29,7 +30,7 @@
 
 ---
 
-## 2. 免登录补丁（3 处源码，核心功能）
+## 2. 源码补丁（免登录 + 画中画保持）
 
 ### 2.1 `src/lib/api-guard.ts` — API 守卫放行
 
@@ -89,6 +90,20 @@ const verified = passwordRequired ? sessionFromCookieHeader(req.headers.get('coo
 - 20 轮 m3u8 manifest 强制中断 + 10 并发流中断 → 服务全程存活；
 - 杀掉 node 服务模拟崩溃 → 启动器 20 秒内自动重启；
 - 全部 LibreTV 窗口关闭 → 服务正确停止。
+
+### 2.5 画中画保持修复（Edge PiP 不暂停）—— 2026-10-20 追加
+
+**问题现象**：直播播放中使用 Edge 画中画（小窗）后，回到 LibreTV 页面换台/操作，小窗播放会暂停。
+
+**根因**：`src/components/live-player.tsx` 原实现把 `url` 放进播放器创建 effect 的依赖数组——换台（url 变化）时整个播放器 `art.destroy()` 并**新建 video 元素**。浏览器画中画跟随的是原 video 元素，元素被销毁后 PiP 即退出/暂停。
+
+**修复**：直播播放器改为与点播播放器一致的设计——ArtPlayer 实例**只在挂载时创建一次**，换台只切换 HLS/FLV/原生源、复用同一 `<video>` 元素，绝不销毁重建；仅手动"重新加载"（错误恢复）允许重建实例：
+1. 创建 effect 依赖数组去掉 `url`（保留 `retryNonce` / 换台回调）；
+2. 新增 `switchSource(targetUrl)`：重置播放状态 → `cleanupEngines()`（只销毁 hls/mpegts 引擎）→ 按引擎分发 `setupHls/setupFlv/setupNative` 复用 `art.video`；
+3. 新增 `[url]` effect 调用 `switchSourceRef.current?.(url)`（跳过首次挂载）；
+4. 各引擎的"直连失败回退代理/原生"统一改用 `fallbackUrl` 参数（基于本次目标地址，而非闭包里的旧 prop）。
+
+**验证**：浏览器实测换台（CCTV13 → CCTV15）——video 元素标记保持不变（同一 DOM 节点未重建）、新频道正常起播（paused=false）。点播播放器（player-shell.tsx）原本就是"只切源不重建"设计，无需改动。
 
 ---
 
