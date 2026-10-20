@@ -2,7 +2,10 @@
 
 > ## ⚠️ 本仓库为个人本地部署 fork（非官方）
 >
-> 本仓库由 **z-hou-w-ei** 从 [LibreSpark/LibreTV](https://github.com/LibreSpark/LibreTV) fork，用于**个人本地部署与技术学习**。与上游的差异说明见 [LOCAL-MODIFICATIONS.md](./LOCAL-MODIFICATIONS.md)。
+> - **上游原项目**：[LibreSpark/LibreTV](https://github.com/LibreSpark/LibreTV)（作者组织：LibreSpark；官方站点：https://libretv.is-an.org/ ；官方文档：https://libretv.is-an.org/wiki/）
+> - **本 fork**：由 **z-hou-w-ei** 基于上游仓库 fork，仅用于**个人本地部署与技术学习**，与上游的差异说明见 [LOCAL-MODIFICATIONS.md](./LOCAL-MODIFICATIONS.md)。
+> - **许可证与版权**：本仓库与上游一致采用 **AGPL-3.0** 开源许可（见 [LICENSE](./LICENSE)，版权归原项目作者所有）；本 fork 的全部修改同样以 AGPL-3.0 授权发布，使用/引用本仓库代码请遵守 AGPL-3.0 条款并保留原始版权声明。
+> - **更新同步**：本 fork 会不定期跟随上游 `main` 分支更新，同步流程见 LOCAL-MODIFICATIONS.md 第 5 节。
 
 > ## 📌 免责声明与合规说明（请阅读）
 >
