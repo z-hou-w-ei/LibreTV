@@ -1,5 +1,5 @@
-# Rewrite group-title of CNTV-V4 playlist into 6 specific groups
-# 央视频道 / 卫视频道 / 地方频道 / 电影频道 / 剧集频道 / 专题频道
+# Rewrite group-title of CNTV-V4 playlist into 6 specific groups (no 频道 suffix)
+# 央视 / 卫视 / 地方 / 电影 / 剧集 / 专题
 import re
 
 SRC = r"C:\Hack APP\LibreTV\public\cntv-v4.m3u"
@@ -13,17 +13,19 @@ local_kw = ["综合","新闻","少儿","教育","生活","购物","经济","影�
             "朝语","遂昌","上虞","余杭","万州","奎屯","句容","普陀","青田","营山",
             "通海","长白山","晋江","亳州","伊犁","延边","梨园","公园","钱江"]
 
-def classify(name: str, orig_group: str) -> str:
+def classify(name: str, old_group: str) -> str:
     n = name.strip()
     if n.startswith("CCTV") or n.startswith("CGTN"):
-        return "央视频道"
+        return "央视"
     if "卫视" in n:
-        return "卫视频道"
-    if orig_group == "电影频道":
-        return "电影频道" if "电影" in n else "剧集频道"
+        return "卫视"
+    if old_group in ("电影", "电影频道"):
+        return "电影" if "电影" in n else "剧集"
+    if old_group == "剧集频道":
+        return "剧集"
     if any(k in n for k in local_kw):
-        return "地方频道"
-    return "专题频道"
+        return "地方"
+    return "专题"
 
 out = []
 counts = {}

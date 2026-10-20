@@ -344,7 +344,7 @@ export function LiveChannelList({ channels, groups, currentUrl, onSelect, onFilt
       {/* 分组标签条（横向可滑动） */}
       {view === 'all' && groups.length > 0 && (
         <div className="px-3 pb-2 shrink-0">
-          <div className="flex gap-1.5 overflow-x-auto scrollbar-thin pb-1">
+          <div className="flex flex-wrap gap-1.5 pb-1">
             <GroupChip active={!group} label="全部分组" onClick={() => setGroup('')} />
             {groups.map((g) => (
               <GroupChip key={g} active={group === g} label={g} onClick={() => setGroup(g === group ? '' : g)} />
