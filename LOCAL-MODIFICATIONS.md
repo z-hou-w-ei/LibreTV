@@ -108,18 +108,26 @@ LIVE_ALLOW_PRIVATE=1
 DEFAULT_SOURCES=[{"name":"非凡资源","url":"https://cj.ffzyapi.com/api.php/provide/vod"},{"name":"暴风资源","url":"https://bfzyapi.com/api.php/provide/vod"},{"name":"量子资源","url":"https://cj.lziapi.com/api.php/provide/vod"},{"name":"光速资源","url":"https://api.guangsuapi.com/api.php/provide/vod"},{"name":"红牛资源","url":"https://www.hongniuzy2.com/api.php/provide/vod"},{"name":"极速资源","url":"https://jszyapi.com/api.php/provide/vod"},{"name":"电影天堂","url":"http://caiji.dyttzyapi.com/api.php/provide/vod"},{"name":"百度资源","url":"https://api.apibdzy.com/api.php/provide/vod"}]
 
 # 预置直播源（M3U 订阅，已实测）
-DEFAULT_LIVE_SOURCES=[{"name":"央视卫视·IPv4","url":"https://peterhchina.github.io/iptv/CNTV-V4.m3u","epg":"https://11.112114.xyz/pp.xml"},{"name":"国际新闻·精选","url":"http://localhost:8080/intl.m3u"}]
+DEFAULT_LIVE_SOURCES=[{"name":"央视卫视·IPv4","url":"http://localhost:8080/cntv-v4.m3u","epg":"https://11.112114.xyz/pp.xml"},{"name":"国际新闻·精选","url":"http://localhost:8080/intl.m3u"}]
 ```
 
 要点：
-- 直播源 ① 央视卫视·IPv4：368 频道（CCTV 全套、CGTN 多语、各卫视），依赖公网 IPv4；若源失效可换同类 IPv4 列表。
+- 直播源 ① 央视卫视·IPv4：**本地文件** `public/cntv-v4.m3u`（peterhchina CNTV-V4 列表本地化，368 频道：CCTV 全套、CGTN 多语、各卫视）。**不用远程 GitHub 地址的原因**：FastGithub 劫持 GitHub 域后，Node 服务端 fetch 因 TLS 证书校验失败返回 502，订阅拉取报失败；本地文件不依赖任何外网域，永不 502。频道流地址失效时重新下载：`curl -sk -o public/cntv-v4.m3u https://raw.githubusercontent.com/peterhchina/iptv/master/CNTV-V4.m3u`。
 - 直播源 ② 国际新闻·精选：指向**本地文件** `public/intl.m3u`（见下），URL 中的端口必须与启动端口（8080）一致。
 
 ---
 
 ## 4. 新增文件
 
-### 4.1 `public/intl.m3u` — 国际新闻精选直播源（6 频道）
+### 4.1 `public/cntv-v4.m3u` — 央视卫视直播源（本地化，368 频道）
+
+peterhchina 的 CNTV-V4 IPv4 列表，已下载为本地文件（原因见 §3：GitHub 远程地址在 FastGithub 环境下服务端 502）。覆盖 CCTV 全套、CGTN 多语种、各省卫视，抽样实测可播率 28/30。
+**更新方法**（流地址失效时）：
+```powershell
+curl.exe -sk -o "C:\Hack APP\LibreTV\public\cntv-v4.m3u" "https://raw.githubusercontent.com/peterhchina/iptv/master/CNTV-V4.m3u"
+```
+
+### 4.2 `public/intl.m3u` — 国际新闻精选直播源（6 频道）
 
 实测当前联通宽带上可直连播放；更新项目时**不要删除此文件**：
 
