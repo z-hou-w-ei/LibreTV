@@ -22,8 +22,8 @@
 | `stress_abort_test.py` | 新增文件 | 客户端中断回归压测脚本 | ✅ 未跟踪文件，保留 |
 | `.env` | 本地配置 | 免登录 + 8 点播源 + 2 直播源 + 超时参数 | ✅ 已被 `.gitignore` 排除，不受影响 |
 | `public/intl.m3u` | 新增文件 | 本地国际精选直播源（6 频道） | ✅ 未跟踪文件，保留 |
-| `start-LibreTV.ps1` | 新增脚本 | 自动启动服务 → 开 Edge 窗口 → 全窗关闭才停服 | ✅ 未跟踪文件，保留 |
-| `LibreTV.bat` | 新增脚本 | 桌面双击入口（隐藏窗口运行 ps1） | ✅ 未跟踪文件，保留 |
+| `start-LibreTV.ps1` | 新增脚本 | 自动启动服务 → 开 Edge 窗口 → 全窗关闭才停服；**相对路径 + 优先用目录内捆绑 node.exe**（便携分发，详见 §2.6） | ✅ 未跟踪文件，保留 |
+| `LibreTV.bat` | 新增脚本 | 桌面双击入口（隐藏窗口运行 ps1，相对路径） | ✅ 未跟踪文件，保留 |
 | `stop-service.bat` | 新增脚本 | 手动停止服务（备用） | ✅ 未跟踪文件，保留 |
 | 桌面 `LibreTV.lnk` | 系统快捷方式 | 指向 `LibreTV.bat`，图标 `public/favicon.ico` | ✅ 位于桌面，不受影响 |
 | `.next/`（构建产物） | 生成 | `npm run build` 产出 | ✅ 已被 `.gitignore` 排除 |
@@ -104,6 +104,28 @@ const verified = passwordRequired ? sessionFromCookieHeader(req.headers.get('coo
 4. 各引擎的"直连失败回退代理/原生"统一改用 `fallbackUrl` 参数（基于本次目标地址，而非闭包里的旧 prop）。
 
 **验证**：浏览器实测换台（CCTV13 → CCTV15）——video 元素标记保持不变（同一 DOM 节点未重建）、新频道正常起播（paused=false）。点播播放器（player-shell.tsx）原本就是"只切源不重建"设计，无需改动。
+
+### 2.6 便携单文件安装包（LibreTV-Setup.exe）—— 2026-10-20 追加
+
+**目标**：把整个 LibreTV 打成单文件安装程序，拷贝到其他电脑双击 → 选择目录 → 自动创建桌面 Edge 入口，开箱即用（不依赖目标机器安装 Node.js）。
+
+**实现**：
+1. **捆绑运行时**：打包 `node.exe`（Windows x64 官方版）到安装目录；`start-LibreTV.ps1` 的 `Start-LibreTVService` 优先使用 `{安装目录}\node.exe`，找不到才回退系统 PATH 的 node。
+2. **相对路径化**：`LibreTV.bat` 的 `cd /d "%~dp0"`、`start-LibreTV.ps1` 的 `$AppDir = $PSScriptRoot`——安装/移动到任意目录都能运行（不再硬编码 `C:\Hack APP\LibreTV`）。
+3. **Inno Setup 6 编译**（`LibreTV-installer.iss`）：lzma2 最大压缩，683 MB 源 → **99 MB 单文件**；默认目录 `%LOCALAPPDATA%\Programs\LibreTV`（免管理员权限、可写日志），向导可自选目录；可选创建桌面/开始菜单快捷方式（图标 `public/favicon.ico`，指向 `LibreTV.bat`）；安装完成可选立即启动。
+
+**重新打包方法**（源目录更新后）：
+```powershell
+# 1. 把最新 node.exe 复制进源目录（仅打包用，打包后可删除）
+Copy-Item "C:\Program Files\nodejs\node.exe" "C:\Hack APP\LibreTV\node.exe"
+# 2. 编译
+& "C:\Users\Administrator\AppData\Local\Programs\Inno Setup 6\ISCC.exe" "C:\Hack APP\LibreTV-installer.iss"
+# 3. 删除打包用的 node.exe（避免进 git）
+Remove-Item "C:\Hack APP\LibreTV\node.exe"
+```
+（`.env`、`public/`、直播本地化文件均随包携带；`.git` 与日志已排除。）
+
+**验证记录**（模拟"拷到其他电脑"）：静默安装到 `C:\Hack APP\TestInstall` → 内容完整（node.exe/.next/node_modules/.env/脚本/桌面快捷方式）→ 双击 `LibreTV.bat` 启动：捆绑 node 起服务（status 200）、直播解析 368 频道 / 6 分组、Edge 窗口出现 → 关闭全部 LibreTV 窗口 → 2 秒内服务停止、node 与守护进程全部退出。测试安装已卸载、原桌面快捷方式已恢复指向 `C:\Hack APP\LibreTV`。
 
 ---
 

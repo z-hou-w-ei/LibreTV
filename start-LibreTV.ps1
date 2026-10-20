@@ -2,7 +2,8 @@
 # Start local service -> open Edge app window(s) -> stop service when ALL windows closed
 $ErrorActionPreference = 'Stop'
 
-$AppDir   = 'C:\Hack APP\LibreTV'
+# 安装目录：始终取脚本所在目录（支持安装到任意路径 / 移动拷贝）
+$AppDir   = $PSScriptRoot
 $Port     = 8080
 $Url      = "http://localhost:$Port"
 $LogFile  = Join-Path $AppDir 'server.log'
@@ -62,7 +63,9 @@ if (-not $Edge) {
 # ---------- Service management ----------
 function Start-LibreTVService {
   Write-Host 'Starting LibreTV service...' -ForegroundColor Cyan
-  $node = (Get-Command node).Source
+  # 优先使用安装目录内捆绑的 node.exe（便携分发），否则回退系统 PATH 中的 node
+  $bundledNode = Join-Path $AppDir 'node.exe'
+  $node = if (Test-Path $bundledNode) { $bundledNode } else { (Get-Command node).Source }
   Start-Process -FilePath $node `
     -ArgumentList 'node_modules\next\dist\bin\next', 'start', '-p', "$Port" `
     -WorkingDirectory $AppDir `
